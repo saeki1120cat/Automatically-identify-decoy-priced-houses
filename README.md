@@ -12,4 +12,4 @@ Create an algorithm that can automatically identify decoy priced houses from "pr
 3. OneClassSVM
 
 ## summary
-So far, we have detected anomalies using three different methods.Because our anomaly detection is unsupervised learning. After building the models, we have no idea how well it is doing as we have nothing to test it against. Hence, the results of those methods need to be tested in the field before placing them in the critical path.
+So far, I have detected anomalies using three different methods.Because our anomaly detection is unsupervised learning. After building the models, we have no idea how well it is doing as we have nothing to test it against. Hence, the results of those methods need to be tested in the field before placing them in the critical path.

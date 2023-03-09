@@ -37,47 +37,65 @@ def decoy_property_detection(csv):
     data = pd.DataFrame(np_scaled)
 
     # Train KMeans
-    df['cluster'] = KMeans(n_clusters=3).fit_predict(data)
+    kmeans = KMeans(n_clusters=3)
+    kmeans.fit(data)
+    df['cluster'] = kmeans.predict(data)
     df.index = data.index
     df['principal_feature1'] = data[0]
     df['principal_feature2'] = data[1]
 
-    def get_distance_point(data, model):
+    def get_distance_point(data, cluster_assignments, model):
         distance = pd.Series()
         for i in range(0, len(data)):
             Xa = np.array(data.loc[i])
-            Xb = model.cluster_centers_[model.labels_[i]]
+            Xb = model.cluster_centers_[cluster_assignments[i]]
             distance.at[i] = np.linalg.norm(Xa - Xb)
         return distance
 
     # Set the outlier scale
     outliers_fraction = 0.05
 
-    # To get the distance from each point to the cluster center
-    distance = get_distance_point(data, KMeans(n_clusters=3).fit(data))
+    # To get the cluster assignments for each data point
+    cluster_assignments = kmeans.predict(data)
 
-    # Calculate the number of outliers based on the outliers_fraction and set a threshold for outliers
-    threshold = distance.nlargest(int(outliers_fraction * len(distance))).min()
+    # To get the distance from each point to the assigned cluster center
+    distance = get_distance_point(data, cluster_assignments, kmeans)
 
-    # Judging whether it is an abnormal value according to the threshold
-    df['anomaly_KMeans'] = (distance >= threshold).astype(int)
+    # Sort the distances and get the top outlier_fraction points
+    distance_sorted = distance.sort_values(ascending=False)
+    n_outliers = int(outliers_fraction * len(distance))
+    outliers_indices = distance_sorted[:n_outliers].index
 
-    # Train isolation forest
-    model = IsolationForest(contamination=outliers_fraction)
-    model.fit(data)
-    df['anomaly_IsolationForest'] = pd.Series(model.predict(data))
+    # Identify outliers using IsolationForest
+    iso = IsolationForest(contamination=outliers_fraction)
+    iso.fit(data)
+    outlier_preds = iso.predict(data)
+    outlier_indices = np.where(outlier_preds == -1)[0]
 
-    # Train OneClassSVM
-    model = OneClassSVM(nu=outliers_fraction, kernel="rbf", gamma=0.01)
-    model.fit(data)
-    df['anomaly_OneClassSVM'] = pd.Series(model.predict(data))
+    # Identify outliers using One-Class SVM
+    svm = OneClassSVM(nu=outliers_fraction)
+    svm.fit(data)
+    svm_preds = svm.predict(data)
+    svm_outlier_indices = np.where(svm_preds == -1)[0]
 
-    # Display exception ID
-    print('Display abnormal ID (KMeans):', df.loc[df['anomaly_KMeans'] == 1]['id'].values)
-    print('Display abnormal ID (IsolationForest):', df.loc[df['anomaly_IsolationForest'] == -1]['id'].values)
-    print('Display abnormal ID (OneClassSVM):', df.loc[df['anomaly_OneClassSVM'] == -1]['id'].values)
-    print('Display abnormal ID (Simultaneously):',
-          df.loc[(df.anomaly_KMeans == 1) & (df.anomaly_IsolationForest == -1) & (df.anomaly_OneClassSVM == -1)][
-              'id'].values)
+    # Merge outlier indices from all 3 methods
+    outlier_indices = list(set(outliers_indices) | set(outlier_indices) | set(svm_outlier_indices))
 
-decoy_property_detection('d_bukken_test.csv')
+    # Add a new column to indicate whether a property is an outlier or not
+    df['outlier'] = 0
+    df.loc[outlier_indices, 'outlier'] = 1
+
+    return df
+
+import seaborn as sns
+
+df_csv = 'd_bukken_test.csv'
+
+# Call the decoy_property_detection function to get the cleaned dataset with outlier column
+df = decoy_property_detection(df_csv)
+
+# Remove the outliers from the dataset
+df = df[df['outlier'] == 0]
+
+# Visualize the clusters and outliers using seaborn
+sns.scatterplot(data=df, x='principal_feature1', y='principal_feature2', hue='cluster', style='outlier')

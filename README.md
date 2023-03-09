@@ -12,4 +12,4 @@ Create an algorithm that can automatically identify decoy priced houses from "pr
 3. OneClassSVM
 
 ## summary
-I have detected anomalies using three different methods.Because our anomaly detection is unsupervised learning. After building the models, we have no idea how well it is doing as we have nothing to test it against. Hence, the results of those methods need to be tested in the field before placing them in the critical path.
+In this code, I'm using K-means、Isolation Forest and One-Class SVM to detect outliers in the dataset. After detecting the outliers, we are removing them from the dataset and visualizing the clusters and outliers using the seaborn library. Finally, we are returning the cleaned dataset. The function takes a CSV file as input and returns a pandas dataframe. The example usage of the function reads the data from a CSV file called 'example_data.csv'.
